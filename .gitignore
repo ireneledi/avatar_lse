@@ -1,5 +1,10 @@
+.vscode
+__pycache__
 *.blend
-*.blend1
-*.fbx
 *.sqlite
-*.json
+*.task
+BuildWebRamona/Build/
+BuildWebRamona/StreamingAssets/
+BuildWebRamona/TemplateData/
+videos/
+whisper.cpp/

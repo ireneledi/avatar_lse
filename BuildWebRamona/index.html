@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LSE · Traductor de Lengua de Signos</title>
+  <link rel="shortcut icon" href="TemplateData/favicon.ico">
+  <link rel="stylesheet" href="TemplateData/style.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <h1>LSE <span>Ramona</span></h1>
+    <p>Traductor de Lengua de Signos Española</p>
+  </div>
+
+  <p class="credit">MADE WITH ♥︎ BY IRENE L.</p>
+</header>
+
+<!-- Panel izquierdo: controles -->
+<div class="panel-left">
+
+  <!-- Grabación de audio -->
+  <div>
+    <p class="section-label">Traducir voz</p>
+    <div class="record-area">
+      <button id="btn-grabar">
+        <div class="dot"></div>
+      </button>
+      <p id="estado-grabacion" class="record-status">Pulsa para grabar</p>
+      <div id="timer"></div>
+    </div>
+  </div>
+
+  <!-- Texto directo -->
+  <div>
+    <p class="section-label">Traducir texto</p>
+    <div class="text-input-area">
+      <textarea
+        id="input-texto"
+        placeholder="Escribe aquí…"
+      ></textarea>
+      <button id="btn-texto">Enviar</button>
+    </div>
+  </div>
+
+  <!-- Resultados -->
+  <div>
+    <p class="section-label">Resultado</p>
+    <div class="resultado-fila">
+      <p class="section-label">Texto original</p>
+      <div id="res-texto" class="resultado-valor vacio">—</div>
+    </div>
+    <div class="resultado-fila">
+      <p class="section-label">Glosa LSE</p>
+      <div id="res-glosa" class="resultado-valor vacio">—</div>
+    </div>
+  </div>
+
+  <!-- Animaciones -->
+  <div class="resultado-fila">
+    <p class="section-label">Signos</p>
+    <div id="chips-container"></div>
+  </div>
+
+  <!-- Estado servidor -->
+  <div id="estado-bar" class="ok">
+    <span class="dot-estado"></span>
+    <span id="estado-texto">Cargando…</span>
+  </div>
+
+</div>
+
+<!-- Panel derecho: Unity WebGL -->
+<div class="panel-right">
+  <div id="unity-container" class="unity-desktop">
+    <canvas id="unity-canvas" tabindex="-1"></canvas>
+    <div id="unity-loading-bar">
+      <div id="unity-logo"></div>
+      <div id="unity-progress-bar-empty">
+        <div id="unity-progress-bar-full"></div>
+      </div>
+    </div>
+    <div id="unity-warning"></div>
+    <div id="unity-footer">
+      <div id="unity-fullscreen-button"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Pie de página -->
+<footer>
+  <span>TFG · Ramona avatar LSE 3D</span>
+  <div id="config-server">
+    <span>Servidor:</span>
+    <input type="text" id="server-url" value="http://localhost:5050">
+  </div>
+</footer>
+
+<!-- Unity -->
+<script>
+  var canvas = document.querySelector("#unity-canvas");
+
+  function unityShowBanner(msg, type) {
+    var warningBanner = document.querySelector("#unity-warning");
+    function updateBannerVisibility() {
+      warningBanner.style.display = warningBanner.children.length ? 'block' : 'none';
+    }
+    var div = document.createElement('div');
+    div.innerHTML = msg;
+    warningBanner.appendChild(div);
+    if (type == 'error') div.style = 'background: red; padding: 10px;';
+    else {
+      if (type == 'warning') div.style = 'background: yellow; padding: 10px;';
+      setTimeout(function() {
+        warningBanner.removeChild(div);
+        updateBannerVisibility();
+      }, 5000);
+    }
+    updateBannerVisibility();
+  }
+
+  var buildUrl = "Build";
+  var loaderUrl = buildUrl + "/BuildWebRamona.loader.js";
+  var config = {
+    arguments: [],
+    dataUrl:      buildUrl + "/BuildWebRamona.data",
+    frameworkUrl: buildUrl + "/BuildWebRamona.framework.js",
+    codeUrl:      buildUrl + "/BuildWebRamona.wasm",
+    streamingAssetsUrl: "StreamingAssets",
+    companyName: "DefaultCompany",
+    productName: "noc",
+    productVersion: "0.1.0",
+    showBanner: unityShowBanner,
+  };
+
+  document.querySelector("#unity-loading-bar").style.display = "block";
+
+  var script = document.createElement("script");
+  script.src = loaderUrl;
+  script.onload = () => {
+    createUnityInstance(canvas, config, (progress) => {
+      document.querySelector("#unity-progress-bar-full").style.width = 100 * progress + "%";
+    }).then((unityInstance) => {
+      window.unityInstance = unityInstance;
+      document.querySelector("#unity-loading-bar").style.display = "none";
+      document.querySelector("#unity-fullscreen-button").onclick = () => {
+        unityInstance.SetFullscreen(1);
+      };
+      checkServidor();
+    }).catch((message) => {
+      alert(message);
+    });
+  };
+  document.body.appendChild(script);
+</script>
+
+<!-- pipeline principal -->
+<script>
+  const getServerUrl = () => document.getElementById('server-url').value.replace(/\/$/, '');
+  const UNITY_GAMEOBJECT = 'ramona';
+  const UNITY_METHOD     = 'ReproducirGlosas';
+
+  // UI
+  function setEstado(tipo, msg, pulso = false) {
+    const bar = document.getElementById('estado-bar');
+    bar.className = tipo;
+    document.getElementById('estado-texto').textContent = msg;
+    bar.querySelector('.dot-estado').className = 'dot-estado' + (pulso ? ' pulso' : '');
+  }
+
+  function setResultados(texto, glosa, animaciones) {
+    const resTexto = document.getElementById('res-texto');
+    const resGlosa = document.getElementById('res-glosa');
+    const chips    = document.getElementById('chips-container');
+
+    resTexto.textContent = texto || '—';
+    resTexto.classList.toggle('vacio', !texto);
+
+    resGlosa.textContent = glosa || '—';
+    resGlosa.classList.toggle('vacio', !glosa);
+
+    chips.innerHTML = '';
+    if (animaciones && animaciones.length) {
+      animaciones.forEach((id, i) => {
+        const chip = document.createElement('span');
+        chip.className = 'chip';
+        chip.textContent = id.replace('_anim', '');
+        chip.dataset.idx = i;
+        chips.appendChild(chip);
+      });
+    }
+  }
+
+  function animarChips(animaciones) {
+    if (!animaciones || !animaciones.length) return;
+    const dur = 1100;
+    animaciones.forEach((_, i) => {
+      setTimeout(() => {
+        document.querySelectorAll('.chip').forEach(c => c.classList.remove('activo'));
+        const chip = document.querySelector(`.chip[data-idx="${i}"]`);
+        if (chip) chip.classList.add('activo');
+      }, i * dur);
+    });
+    setTimeout(() => {
+      document.querySelectorAll('.chip').forEach(c => c.classList.remove('activo'));
+    }, animaciones.length * dur + 300);
+  }
+
+  // Unity
+  function enviarAUnity(secuencia) {
+    if (window.unityInstance) {
+      window.unityInstance.SendMessage(UNITY_GAMEOBJECT, UNITY_METHOD, secuencia);
+    } else {
+      console.warn('[LSE] Unity todavía cargando. Secuencia:', secuencia);
+    }
+  }
+
+  // Servidor
+  async function procesarResultado(fetchPromise) {
+    setEstado('cargando', 'Procesando…', true);
+    try {
+      const resp = await fetchPromise;
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }));
+        throw new Error(err.error || `Error ${resp.status}`);
+      }
+      const data = await resp.json();
+      setResultados(data.texto_original, data.glosa_lse, data.animaciones);
+      setEstado('ok', `${data.animaciones.length} signos generados`);
+      enviarAUnity(data.secuencia);
+      animarChips(data.animaciones);
+    } catch (e) {
+      setEstado('error', e.message);
+    }
+  }
+
+  async function checkServidor() {
+    try {
+      const r = await fetch(`${getServerUrl()}/health`, { signal: AbortSignal.timeout(3000) });
+      if (r.ok) {
+        const d = await r.json();
+        setEstado('ok', `Servidor conectado · ${d.palabras} palabras`);
+      }
+    } catch {
+      setEstado('info', 'Servidor no detectado');
+    }
+  }
+
+  // Grabación
+  let mediaRecorder = null, audioChunks = [], grabando = false;
+  let timerInterval = null, segundos = 0;
+
+  function formatTimer(s) {
+    return `${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`;
+  }
+
+  const btnGrabar = document.getElementById('btn-grabar');
+
+  async function iniciarGrabacion() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      audioChunks = [];
+
+      mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+      mediaRecorder.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(audioChunks, { type: 'audio/webm' });
+        const fd = new FormData();
+        fd.append('audio', blob, 'grabacion.webm');
+        await procesarResultado(fetch(`${getServerUrl()}/traducir`, { method: 'POST', body: fd }));
+      };
+
+      mediaRecorder.start();
+      grabando = true;
+      btnGrabar.classList.add('grabando');
+      document.getElementById('estado-grabacion').textContent = 'Grabando… pulsa para parar';
+      document.getElementById('estado-grabacion').className = 'record-status grabando';
+      document.getElementById('timer').classList.add('visible');
+      segundos = 0;
+      document.getElementById('timer').textContent = formatTimer(0);
+      timerInterval = setInterval(() => {
+        segundos++;
+        document.getElementById('timer').textContent = formatTimer(segundos);
+      }, 1000);
+    } catch {
+      setEstado('error', 'No se pudo acceder al micrófono');
+    }
+  }
+
+  function detenerGrabacion() {
+    if (!grabando) return;
+    mediaRecorder.stop();
+    grabando = false;
+    clearInterval(timerInterval);
+    btnGrabar.classList.remove('grabando');
+    document.getElementById('estado-grabacion').textContent = 'Pulsa para grabar';
+    document.getElementById('estado-grabacion').className = 'record-status';
+    document.getElementById('timer').classList.remove('visible');
+    setEstado('cargando', 'Enviando audio…', true);
+  }
+
+  btnGrabar.addEventListener('click', () => grabando ? detenerGrabacion() : iniciarGrabacion());
+
+  // texto directo
+  document.getElementById('btn-texto').addEventListener('click', () => {
+    const texto = document.getElementById('input-texto').value.trim();
+    if (!texto) return;
+    procesarResultado(fetch(`${getServerUrl()}/traducir_texto`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ texto })
+    }));
+  });
+</script>
+
+</body>
+</html>
