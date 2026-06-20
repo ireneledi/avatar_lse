@@ -5,15 +5,17 @@ Producción de Lengua de Signos (SLP) capaz de traducir cualquier frase a Lengua
 de Signos Española (LSE) y reproducirla visualmente a través de un avatar 3D, 
 tomando como entrada tanto audio como texto.
 
+Este proyecto está adaptado para el sistema operativo de MacOS con chip M. En un futuro se analizará la adaptación a otros sistemas operativos como Windows o Linux.
+
 ## Pipeline
 
 El proyecto contempla un flujo compuesto por las siguientes etapas:
 
-- **Transcripción de audio** con Whisper.cpp.
-- **Traducción a glosas LSE** a partir del corpus sintético de ruLSE.
-- **Extracción de landmarks** de vídeos de signantes del corpus DILSE con MediaPipe.
-- **Síntesis de animaciones** a partir de los landmarks extraídos, generadas en Blender e integradas en Unity.
-- **Interfaz interactiva** que integra el pipeline completo, permitiendo obtener la representación en LSE de cualquier frase en tiempo real.
+- **Transcripción de audio** con [Whisper.cpp-large-v3-turbo](https://huggingface.co/openai/whisper-large-v3-turbo).
+- **Traducción a glosas LSE** a partir del corpus sintético de [ruLSE](https://github.com/celiabotlop/LSEGloss2SpanishText).
+- **Extracción de landmarks** de vídeos de signantes del corpus DILSE con [MediaPipe Hand Landmarker](https://developers.google.com/edge/mediapipe/solutions/vision/hand_landmarker) y [MediaPipe Pose Landmarker](https://developers.google.com/edge/mediapipe/solutions/vision/pose_landmarker).
+- **Síntesis de animaciones** a partir de los landmarks extraídos, generadas en [Blender](https://www.blender.org) e integradas en [Unity](https://unity.com/es).
+- **Interfaz interactiva**, con [Flask](https://flask.palletsprojects.com/en/stable/) como herramienta de comunicación entre backend y frontend, que integra el pipeline completo permitiendo obtener la representación en LSE de cualquier frase en tiempo real.
 
 ## Estructura del repositorio
 
