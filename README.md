@@ -91,7 +91,7 @@ cd ruta_hasta_whisper.cpp/whisper.cpp
 Levanta la API de Python que gestiona la traducción y la lógica. Se habilitará el puerto 5050:
 
 ```bash
-cd ruta_hasta_avatar_lse/avatar_lse/modelo
+cd ruta_hasta_ramonaLSE/ramonaLSE/modelo
 python servidor.py
 ```
 
@@ -99,7 +99,7 @@ python servidor.py
 Levanta un servidor HTTP simple para visualizar el avatar interactivo en el navegador en el puerto 8000:
 
 ```bash
-cd ruta_hasta_avatar_lse/avatar_lse/BuildWebRamona
+cd ruta_hasta_ramonaLSE/ramonaLSE/BuildWebRamona
 python -m http.server 8000
 ```
 
